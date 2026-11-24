@@ -1,0 +1,753 @@
+// Indichthys database schema.
+//
+// Portable between SQLite (now) and PostgreSQL (later):
+//  - no Prisma enums, Json or scalar lists; status/kind values are plain strings
+//    validated in the API (see src/modules/identification/constants.ts)
+//  - to migrate: change `provider` to "postgresql", swap the driver adapter in
+//    src/db.ts, delete prisma/migrations and run `prisma migrate dev`.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ───────────────────────── Shared ─────────────────────────
+
+/// A taxon referenced by the platform. Linked to GBIF when gbifKey is set.
+model Taxon {
+  id             Int      @id @default(autoincrement())
+  gbifKey        Int?     @unique
+  scientificName String
+  authorship     String?
+  /// species | genus | family | order …
+  rank           String   @default("species")
+  family         String?
+  order          String?
+  createdAt      DateTime @default(now())
+
+  characterStates TaxonCharacterState[]
+  numericRanges   TaxonNumericRange[]
+  keyLeads        KeyLead[]
+  guideEntries    GuideEntry[]
+  proposals       IdentificationProposal[]
+  verifiedFor     IdentificationRequest[]  @relation("VerifiedTaxon")
+
+  @@index([scientificName])
+}
+
+// ─────────────── Character-based identification ───────────────
+
+/// A morphological, meristic or morphometric character.
+model Character {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  name        String
+  /// categorical | meristic | morphometric
+  kind        String
+  /// e.g. "count", "% SL"
+  unit        String?
+  /// UI grouping, e.g. "Body", "Fins", "Head"
+  group       String?
+  description String?
+  sortOrder   Int     @default(0)
+
+  states        CharacterState[]
+  numericRanges TaxonNumericRange[]
+}
+
+model CharacterState {
+  id          Int     @id @default(autoincrement())
+  characterId Int
+  code        String
+  label       String
+  description String?
+  sortOrder   Int     @default(0)
+
+  character Character             @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  taxa      TaxonCharacterState[]
+
+  @@unique([characterId, code])
+}
+
+/// Categorical scoring: a taxon may have several states (polymorphic).
+model TaxonCharacterState {
+  taxonId Int
+  stateId Int
+
+  taxon Taxon          @relation(fields: [taxonId], references: [id], onDelete: Cascade)
+  state CharacterState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  @@id([taxonId, stateId])
+}
+
+/// Meristic / morphometric scoring: inclusive range for a taxon.
+model TaxonNumericRange {
+  taxonId     Int
+  characterId Int
+  min         Float
+  max         Float
+  source      String?
+
+  taxon     Taxon     @relation(fields: [taxonId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([taxonId, characterId])
+}
+
+// ─────────────────── Dichotomous keys ───────────────────
+
+model IdentificationKey {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  title       String
+  description String?
+  /// Geographic coverage, e.g. "Western Ghats"
+  region      String?
+  /// Taxonomic coverage, e.g. "Freshwater fish families of India"
+  scope       String?
+  authors     String?
+  reference   String?
+  /// draft | published
+  status      String   @default("draft")
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leads KeyLead[]
+}
+
+/// One lead of a couplet (e.g. 3a). Leads to another couplet or to a result.
+model KeyLead {
+  id          Int     @id @default(autoincrement())
+  keyId       Int
+  couplet     Int
+  /// "a", "b", "c" …
+  label       String
+  text        String
+  nextCouplet Int?
+  /// Result when the taxon exists in the Taxon table …
+  taxonId     Int?
+  /// … or a free-text result (e.g. a family not yet in Taxon).
+  resultName  String?
+  imageUrl    String?
+
+  key   IdentificationKey @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  taxon Taxon?            @relation(fields: [taxonId], references: [id])
+
+  @@unique([keyId, couplet, label])
+}
+
+// ─────────────────── Regional guides ───────────────────
+
+model RegionalGuide {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  title       String
+  region      String
+  description String?
+  authors     String?
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entries GuideEntry[]
+}
+
+model GuideEntry {
+  id         Int     @id @default(autoincrement())
+  guideId    Int
+  taxonId    Int
+  /// Diagnostic field marks for this guide's region.
+  fieldMarks String?
+  /// Similar species and how to tell them apart.
+  similar    String?
+  sortOrder  Int     @default(0)
+
+  guide RegionalGuide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  taxon Taxon         @relation(fields: [taxonId], references: [id])
+
+  @@unique([guideId, taxonId])
+}
+
+// ───────────── Expert identification requests ─────────────
+
+model IdentificationRequest {
+  id              Int       @id @default(autoincrement())
+  title           String
+  /// TODO: replace with a user relation once accounts exist (modules 4 & 15).
+  submitterName   String
+  submitterEmail  String
+  /// Set when the submitter was signed in.
+  submitterId     Int?
+  observedOn      DateTime?
+  locality        String
+  region          String?
+  country         String    @default("IN")
+  latitude        Float?
+  longitude       Float?
+  habitat         String?
+  /// Counts/measurements the submitter recorded, free text.
+  characterNotes  String?
+  notes           String?
+  /// open | proposed | verified | closed
+  status          String    @default("open")
+  verifiedTaxonId Int?
+  verifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  verifiedTaxon Taxon?                   @relation("VerifiedTaxon", fields: [verifiedTaxonId], references: [id])
+  submitter     User?                    @relation(fields: [submitterId], references: [id], onDelete: SetNull)
+  photos        RequestPhoto[]
+  proposals     IdentificationProposal[]
+
+  @@index([status])
+}
+
+model RequestPhoto {
+  id           Int      @id @default(autoincrement())
+  requestId    Int
+  fileName     String   @unique
+  originalName String
+  mimeType     String
+  size         Int
+  createdAt    DateTime @default(now())
+
+  request IdentificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model IdentificationProposal {
+  id         Int      @id @default(autoincrement())
+  requestId  Int
+  taxonId    Int
+  /// Snapshot of the proposer's display name.
+  proposedBy String
+  /// Snapshot: proposer had a verified ichthyologist profile at the time.
+  isExpert   Boolean  @default(false)
+  userId     Int?
+  /// certain | likely | possible
+  confidence String
+  reasoning  String?
+  createdAt  DateTime @default(now())
+
+  request IdentificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  taxon   Taxon                 @relation(fields: [taxonId], references: [id])
+  user    User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  reviews ProposalReview[]
+}
+
+/// Agree/disagree on a proposal: the verification & validation step.
+model ProposalReview {
+  id         Int      @id @default(autoincrement())
+  proposalId Int
+  /// Snapshot of the reviewer's display name.
+  reviewer   String
+  /// Snapshot: reviewer had a verified ichthyologist profile at the time.
+  isExpert   Boolean  @default(false)
+  userId     Int?
+  /// agree | disagree
+  decision   String
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  proposal IdentificationProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  user     User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  /// One review per person per proposal (anonymous legacy rows have no userId).
+  @@unique([proposalId, userId])
+}
+
+// ───────────────────── Accounts (shared) ─────────────────────
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  /// scrypt hash, see src/modules/auth/password.ts
+  passwordHash String
+  displayName  String
+  /// user | admin
+  role         String   @default("user")
+  createdAt    DateTime @default(now())
+
+  sessions          Session[]
+  profile           Ichthyologist?           @relation("ProfileOwner")
+  verifiedProfiles  Ichthyologist[]          @relation("ProfileVerifier")
+  verificationLog   VerificationEvent[]
+  sentContacts      ContactRequest[]
+  newsPosts         NewsPost[]
+  addedPublications Publication[]           @relation("PublicationAdder")
+  lessonsDone       LessonCompletion[]
+  certificates      Certificate[]
+  library           SavedPublication[]
+  events            Event[]
+  opportunities     Opportunity[]
+  projects          ConservationProject[]
+  proposals         IdentificationProposal[]
+  reviews           ProposalReview[]
+  requests          IdentificationRequest[]
+}
+
+model Session {
+  /// sha256 of the cookie token (the raw token is never stored)
+  id        String   @id
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────── Module 4: Ichthyologist Registry ───────────────────
+
+model Ichthyologist {
+  id                     Int       @id @default(autoincrement())
+  userId                 Int?      @unique
+  slug                   String    @unique
+  fullName               String
+  /// e.g. Dr, Prof
+  honorific              String?
+  /// e.g. "Assistant Professor", "PhD scholar"
+  position               String?
+  bio                    String?
+  country                String    @default("IN")
+  region                 String?
+  city                   String?
+  /// Never shown publicly; contact goes through the contact form.
+  contactEmail           String?
+  website                String?
+  orcid                  String?
+  googleScholar          String?
+  researchGate           String?
+  acceptingCollaboration Boolean   @default(true)
+  acceptingStudents      Boolean   @default(false)
+  isPublic               Boolean   @default(true)
+  isDemo                 Boolean   @default(false)
+  /// unverified | pending | verified | rejected
+  verificationStatus     String    @default("unverified")
+  /// Evidence the owner gave when requesting verification.
+  verificationEvidence   String?
+  verifiedAt             DateTime?
+  verifiedById           Int?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user         User?               @relation("ProfileOwner", fields: [userId], references: [id], onDelete: SetNull)
+  verifiedBy   User?               @relation("ProfileVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  expertise    ProfileExpertise[]
+  interests    ResearchInterest[]
+  affiliations Affiliation[]
+  authorships  PublicationAuthor[]
+  contacts     ContactRequest[]
+  verification VerificationEvent[]
+
+  @@index([verificationStatus])
+}
+
+/// Controlled vocabulary for areas of expertise.
+model ExpertiseArea {
+  id        Int    @id @default(autoincrement())
+  slug      String @unique
+  name      String
+  /// discipline | taxon | region
+  category  String
+  sortOrder Int    @default(0)
+
+  profiles     ProfileExpertise[]
+  publications PublicationTopic[]
+}
+
+model ProfileExpertise {
+  profileId Int
+  areaId    Int
+
+  profile Ichthyologist @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  area    ExpertiseArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@id([profileId, areaId])
+}
+
+/// Free-text research interests (tags).
+model ResearchInterest {
+  id        Int    @id @default(autoincrement())
+  profileId Int
+  label     String
+
+  profile Ichthyologist @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, label])
+}
+
+model Institution {
+  id        Int      @id @default(autoincrement())
+  name      String
+  /// university | research-institute | museum | government | ngo | other
+  type      String   @default("other")
+  city      String?
+  region    String?
+  country   String   @default("IN")
+  website     String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  affiliations  Affiliation[]
+  opportunities Opportunity[]
+  projects      ConservationProject[]
+
+  @@unique([name, country])
+}
+
+model Affiliation {
+  id            Int     @id @default(autoincrement())
+  profileId     Int
+  institutionId Int
+  role          String?
+  department    String?
+  startYear     Int?
+  endYear       Int?
+  isCurrent     Boolean @default(true)
+
+  profile     Ichthyologist @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  institution Institution   @relation(fields: [institutionId], references: [id])
+}
+
+/// Publication in the research repository (Module 3); also listed on author profiles (Module 4).
+model Publication {
+  id        Int      @id @default(autoincrement())
+  title     String
+  /// Author list as cited, e.g. "Pethiyagoda R, Meegaskumbura M, Maduwage K"
+  authors   String
+  year      Int?
+  journal   String?
+  volume    String?
+  issue     String?
+  pages     String?
+  publisher String?
+  doi       String?  @unique
+  url       String?
+  abstract  String?
+  /// article | species-description | taxonomic-revision | report | book | field-guide | chapter | thesis | other
+  type      String   @default("article")
+  addedById Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  addedBy     User?               @relation("PublicationAdder", fields: [addedById], references: [id], onDelete: SetNull)
+  authorships PublicationAuthor[]
+  topics      PublicationTopic[]
+  taxa        PublicationTaxon[]
+  savedBy     SavedPublication[]
+
+  @@index([year])
+  @@index([type])
+}
+
+/// Research topic directory: publications tagged with the shared expertise vocabulary.
+model PublicationTopic {
+  publicationId Int
+  areaId        Int
+
+  publication Publication   @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  area        ExpertiseArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@id([publicationId, areaId])
+}
+
+/// Taxa a publication describes or revises (links to the GBIF-backed taxonomy pages).
+model PublicationTaxon {
+  publicationId  Int
+  gbifKey        Int
+  scientificName String
+
+  publication Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  @@id([publicationId, gbifKey])
+  @@index([gbifKey])
+}
+
+/// A member's personal bibliography ("My library").
+model SavedPublication {
+  userId        Int
+  publicationId Int
+  createdAt     DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publication Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, publicationId])
+}
+
+model PublicationAuthor {
+  publicationId Int
+  profileId     Int
+
+  publication Publication   @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  profile     Ichthyologist @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([publicationId, profileId])
+}
+
+model ContactRequest {
+  id           Int      @id @default(autoincrement())
+  profileId    Int
+  senderUserId Int?
+  senderName   String
+  /// Visible only to the profile owner.
+  senderEmail  String
+  /// contact | collaboration | identification | student
+  kind         String
+  subject      String
+  message      String
+  /// new | read | archived
+  status       String   @default("new")
+  createdAt    DateTime @default(now())
+
+  profile Ichthyologist @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  sender  User?         @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, status])
+}
+
+/// Audit log of verification requests and decisions.
+model VerificationEvent {
+  id        Int      @id @default(autoincrement())
+  profileId Int
+  actorId   Int?
+  /// requested | verified | rejected | revoked
+  action    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  profile Ichthyologist @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actor   User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+// ─────────────── Shared moderation convention (Modules 7, 8, 9, 14) ───────────────
+// status: pending (submitted by a user) | published | rejected | archived
+// Admin submissions are published immediately; everything else waits for /admin/moderation.
+
+// ─────────────────── Module 14: News & Events ───────────────────
+
+model NewsPost {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  title       String
+  summary     String
+  /// Plain text; blank lines separate paragraphs.
+  body        String
+  /// news | new-species | taxonomic-update | research | conservation | announcement
+  category    String    @default("news")
+  sourceUrl   String?
+  /// draft | published
+  status      String    @default("draft")
+  publishedAt DateTime?
+  authorId    Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+}
+
+model Event {
+  id                   Int       @id @default(autoincrement())
+  slug                 String    @unique
+  title                String
+  description          String
+  /// conference | seminar | workshop | field-course | webinar | other
+  kind                 String    @default("conference")
+  startsOn             DateTime
+  endsOn               DateTime?
+  isOnline             Boolean   @default(false)
+  venue                String?
+  city                 String?
+  country              String    @default("IN")
+  organiser            String?
+  url                  String?
+  registrationDeadline DateTime?
+  status               String    @default("pending")
+  submittedById        Int?
+  moderationNote       String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  submittedBy User? @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+
+  @@index([status, startsOn])
+}
+
+// ─────────────── Modules 8 & 9: Grants, Funding, Jobs ───────────────
+
+model Opportunity {
+  id             Int       @id @default(autoincrement())
+  slug           String    @unique
+  /// funding | jobs
+  section        String
+  /// funding: research-grant | conservation-funding | government-grant | csr-funding | fellowship | funded-project | proposal-resource
+  /// jobs:    job | research-assistant | field-biologist | phd | postdoc | internship | volunteer | fellowship
+  type           String
+  title          String
+  organisation   String
+  institutionId  Int?
+  description    String
+  eligibility    String?
+  /// Free text, e.g. "Up to ₹10 lakh" or "₹42,000/month"
+  amount         String?
+  location       String?
+  country        String    @default("IN")
+  isRemote       Boolean   @default(false)
+  deadline       DateTime?
+  startDate      DateTime?
+  applyUrl       String?
+  status         String    @default("pending")
+  submittedById  Int?
+  moderationNote String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  institution Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  submittedBy User?        @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+
+  @@index([section, status, deadline])
+}
+
+// ─────────────── Module 7: Conservation & Organisations ───────────────
+
+model ConservationProject {
+  id             Int      @id @default(autoincrement())
+  slug           String   @unique
+  title          String
+  /// project | initiative | citizen-programme
+  kind           String   @default("project")
+  summary        String
+  description    String?
+  institutionId  Int?
+  organisation   String?
+  region         String?
+  /// Species or groups involved, free text (e.g. "Tor khudree, mahseers")
+  focusSpecies   String?
+  /// ongoing | completed | planned
+  projectStatus  String   @default("ongoing")
+  startYear      Int?
+  endYear        Int?
+  url            String?
+  howToJoin      String?
+  status         String   @default("pending")
+  submittedById  Int?
+  moderationNote String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  institution Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  submittedBy User?        @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+
+  @@index([status, kind])
+}
+
+// ─────────────────── Module 5: Courses & Education ───────────────────
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  title       String
+  summary     String
+  description String?
+  /// indichthys (lessons + quiz on this site) | external (listing with a link)
+  kind        String   @default("indichthys")
+  /// ichthyology | taxonomy | identification | photography | morphometrics | field-methods | molecular
+  subject     String
+  /// online | in-person | field | blended
+  format      String   @default("online")
+  /// beginner | intermediate | advanced
+  level       String   @default("beginner")
+  provider    String
+  url         String?
+  /// Free text, e.g. "About 1 hour", "38 hours", "6 weeks"
+  duration    String?
+  /// Free text, e.g. "Free", "US$2,190"
+  cost        String?
+  /// Fraction of quiz answers needed to pass (Indichthys courses).
+  passMark    Float    @default(0.8)
+  /// draft | published
+  status      String   @default("published")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lessons      Lesson[]
+  questions    QuizQuestion[]
+  certificates Certificate[]
+
+  @@index([status, subject])
+}
+
+model Lesson {
+  id       Int    @id @default(autoincrement())
+  courseId Int
+  position Int
+  title    String
+  /// Plain text: blank lines separate paragraphs; lines starting with "- " are bullets.
+  body     String
+
+  course      Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  completions LessonCompletion[]
+
+  @@unique([courseId, position])
+}
+
+model QuizQuestion {
+  id          Int     @id @default(autoincrement())
+  courseId    Int
+  position    Int
+  prompt      String
+  /// Shown after answering.
+  explanation String?
+
+  course  Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  options QuizOption[]
+
+  @@unique([courseId, position])
+}
+
+model QuizOption {
+  id         Int     @id @default(autoincrement())
+  questionId Int
+  position   Int
+  label      String
+  isCorrect  Boolean @default(false)
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model LessonCompletion {
+  userId      Int
+  lessonId    Int
+  completedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([userId, lessonId])
+}
+
+/// Issued when a learner passes a course quiz. Anyone can verify it by its code.
+model Certificate {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique
+  userId        Int
+  courseId      Int
+  recipientName String
+  score         Float
+  issuedAt      DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}

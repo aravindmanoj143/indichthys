@@ -1,0 +1,41 @@
+{
+  "name": "indichthys-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test 'src/**/*.test.ts' 'scripts/**/*.test.ts'",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "user:admin": "tsx scripts/make-admin.ts",
+    "data:import": "tsx scripts/import-sample-data.ts",
+    "data:drive": "tsx scripts/import-drive-papers.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/cors": "^11.4.3",
+    "@fastify/multipart": "^10.1.9",
+    "@fastify/rate-limit": "^11.3.0",
+    "@fastify/static": "^10.1.12",
+    "@prisma/adapter-better-sqlite3": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "better-sqlite3": "^12.11.1",
+    "dotenv": "^18.0.10",
+    "fastify": "^5.12.8",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^24.19.2",
+    "prisma": "^7.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2"
+  }
+}

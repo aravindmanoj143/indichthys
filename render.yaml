@@ -1,0 +1,36 @@
+# Render blueprint: one Node web service serving the Angular app and the API.
+# Free plan has no persistent disk, so the SQLite database is rebuilt (migrate, seed, sample data) on every deploy;
+# accounts and user-submitted content are lost on redeploy. Add a disk (paid) and point DATABASE_URL at it to keep data.
+services:
+  - type: web
+    name: indichthys
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: >-
+      npm ci --include=dev &&
+      npm --prefix server ci --include=dev &&
+      npm run build &&
+      cd server &&
+      npx prisma migrate deploy &&
+      npm run db:seed &&
+      (npm run data:import || echo "sample data import failed; continuing") &&
+      (npm run data:drive || echo "drive paper import failed; continuing")
+    startCommand: cd server && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        value: file:./data/indichthys.db
+      - key: WEB_ROOT
+        value: ../dist/indichthys/browser
+      - key: CORS_ORIGINS
+        value: https://indichthys.onrender.com
+      # Comma-separated emails that become admins when they register.
+      - key: ADMIN_EMAILS
+        sync: false
