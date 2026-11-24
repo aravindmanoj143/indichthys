@@ -4,9 +4,14 @@ import type { Db } from '../../db';
 import { requireUser } from '../auth/auth';
 import { deleteUploads, readPhotoForm } from '../uploads';
 import { communityTaxon, publicPosition, qualityGrade } from './quality';
-import { IdParam, IdentParam, IdentificationBody, ListQuery, ObservationFields, TaxonFields } from './schemas';
+import { GuestFields, IdParam, IdentParam, IdentificationBody, ListQuery, ObservationFields, TaxonFields } from './schemas';
 
-const createLimit = { config: { rateLimit: { max: 30, timeWindow: '1 hour' } } };
+const createLimit = {
+  config: {
+    // Guests (no account) get a tighter limit than signed-in users.
+    rateLimit: { max: (request: { user: { id: number } | null }) => (request.user ? 30 : 6), timeWindow: '1 hour' },
+  },
+};
 
 const personSelect = {
   displayName: true,
@@ -14,11 +19,11 @@ const personSelect = {
 } satisfies Prisma.UserSelect;
 
 type Person = Prisma.UserGetPayload<{ select: typeof personSelect }>;
-const person = (u: Person) => ({
-  name: u.profile?.fullName ?? u.displayName,
-  profileSlug: u.profile?.slug ?? null,
-  verified: u.profile?.verificationStatus === 'verified',
-});
+/** Display info for an account, or a guest's given name. */
+const person = (u: Person | null, guestName: string | null) =>
+  u
+    ? { name: u.profile?.fullName ?? u.displayName, profileSlug: u.profile?.slug ?? null, verified: u.profile?.verificationStatus === 'verified', guest: false }
+    : { name: guestName ?? 'Guest', profileSlug: null, verified: false, guest: true };
 
 /** Recompute community taxon and quality grade from current identifications. */
 async function refresh(db: Db, id: number) {
@@ -72,6 +77,7 @@ export async function observationRoutes(app: FastifyInstance, { db }: { db: Db }
           observedAt: true,
           placeName: true,
           waterBody: true,
+          guestName: true,
           publicLatitude: true,
           publicLongitude: true,
           user: { select: personSelect },
@@ -86,11 +92,11 @@ export async function observationRoutes(app: FastifyInstance, { db }: { db: Db }
       species: species.length,
       page: q.page,
       pageSize: q.pageSize,
-      items: rows.map(({ user, photos, _count, publicLatitude, publicLongitude, ...o }) => ({
+      items: rows.map(({ user, guestName, photos, _count, publicLatitude, publicLongitude, ...o }) => ({
         ...o,
         latitude: publicLatitude,
         longitude: publicLongitude,
-        observer: person(user),
+        observer: person(user, guestName),
         photo: photos[0]?.fileName ?? null,
         identifications: _count.identifications,
       })),
@@ -127,10 +133,10 @@ export async function observationRoutes(app: FastifyInstance, { db }: { db: Db }
     });
     if (!o) return reply.code(404).send({ error: 'Observation not found' });
     const me = request.user;
-    const isOwn = me?.id === o.userId;
+    const isOwn = !!me && me.id === o.userId;
     const current = o.identifications.filter((i) => i.isCurrent);
     const community = communityTaxon(current);
-    const { user, identifications, userId: _u, latitude, longitude, publicLatitude, publicLongitude, ...rest } = o;
+    const { user, identifications, userId: _u, guestName, guestEmail: _e, latitude, longitude, publicLatitude, publicLongitude, ...rest } = o;
     return {
       ...rest,
       // The owner sees the exact position; everyone else the public one.
@@ -138,30 +144,34 @@ export async function observationRoutes(app: FastifyInstance, { db }: { db: Db }
       longitude: isOwn ? longitude : publicLongitude,
       publicLatitude,
       publicLongitude,
-      observer: person(user),
+      observer: person(user, guestName),
       community: community && { taxonName: community.taxonName, gbifKey: community.gbifKey, agreements: community.agreements, total: community.total },
-      identifications: identifications.map(({ user: iu, userId, ...i }) => ({ ...i, by: person(iu), isMine: me?.id === userId })),
-      myCurrentId: current.find((i) => i.userId === me?.id)?.id ?? null,
+      identifications: identifications.map(({ user: iu, userId, guestName: g, ...i }) => ({ ...i, by: person(iu, g), isMine: !!me && me.id === userId })),
+      myCurrentId: (me && current.find((i) => i.userId === me.id)?.id) ?? null,
       isOwn,
       canDelete: isOwn || me?.role === 'admin',
     };
   });
 
+  /** Signed-in users, or guests who give their name (email optional, kept private). */
   app.post('/', createLimit, async (request, reply) => {
-    const user = requireUser(request);
+    const user = request.user;
     const { fields, photos, cleanup } = await readPhotoForm(request);
     try {
       const data = ObservationFields.parse(fields);
+      const guest = user ? null : GuestFields.parse(fields);
       const taxon = fields['taxonName'] ? TaxonFields.parse(fields) : null;
       const pos = publicPosition(data);
+      const by = user ? { userId: user.id } : { guestName: guest!.guestName };
       const created = await db.observation.create({
         data: {
           ...data,
           publicLatitude: pos.latitude,
           publicLongitude: pos.longitude,
-          userId: user.id,
+          ...by,
+          guestEmail: guest?.guestEmail ?? null,
           photos: { create: photos },
-          ...(taxon ? { identifications: { create: { ...taxon, userId: user.id } } } : {}),
+          ...(taxon ? { identifications: { create: { ...taxon, ...by } } } : {}),
         },
         select: { id: true },
       });

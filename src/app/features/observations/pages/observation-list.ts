@@ -24,15 +24,11 @@ import { type QualityGrade, ObservationsApi, QUALITY_COLOURS, QUALITY_LABELS, UP
       <div class="space-y-1">
         <h1 class="text-2xl font-semibold tracking-tight">Observations</h1>
         <p class="text-muted-foreground max-w-2xl">
-          Fish sightings from the field, with photos, date and location. Anyone signed in can add observations and help identify them;
+          Fish sightings from the field, with photos, date and location. Anyone can add an observation, and signed-in members help identify them;
           records agreed by the community become research grade.
         </p>
       </div>
-      @if (auth.user()) {
-        <a hlmBtn routerLink="/observations/new"><ng-icon name="lucidePlus" /> Add observation</a>
-      } @else {
-        <a hlmBtn variant="outline" routerLink="/account/login" [queryParams]="{ next: '/observations/new' }">Sign in to add observations</a>
-      }
+      <a hlmBtn routerLink="/observations/new"><ng-icon name="lucidePlus" /> Add observation</a>
     </header>
 
     <div class="mb-4 flex flex-wrap items-center gap-3">

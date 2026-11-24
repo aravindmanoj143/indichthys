@@ -44,6 +44,7 @@ const OBSCURED_RADIUS_M = 15000;
               Observed by
               @if (o.observer.profileSlug) { <a [routerLink]="['/ichthyologists', o.observer.profileSlug]" class="text-foreground hover:underline">{{ o.observer.name }}</a> }
               @else { <span class="text-foreground">{{ o.observer.name }}</span> }
+              @if (o.observer.guest) { <span class="text-xs">(guest)</span> }
             </span>
             <span>{{ o.observedAt ? (o.observedAt | date: 'd MMM y, HH:mm') : 'Date not recorded' }}</span>
           </div>

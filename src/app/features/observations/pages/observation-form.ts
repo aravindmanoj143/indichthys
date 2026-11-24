@@ -8,6 +8,7 @@ import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { AuthService } from '../../../core/auth.service';
 import { SELECT_CLASS } from '../../content/components/shared';
 import { TaxonPicker } from '../../identification/components/taxon-picker';
 import type { TaxonInput } from '../../identification/identification.api';
@@ -179,6 +180,29 @@ const txt = (v: string) => v.trim() || null;
         </div>
       </div>
 
+      @if (!id() && !auth.user()) {
+        <div hlmCard>
+          <div hlmCardHeader>
+            <h2 hlmCardTitle>Your details</h2>
+            <p hlmCardDescription>
+              No account needed. Your name is shown with the observation; your email stays private.
+              <a routerLink="/account/login" [queryParams]="{ next: '/observations/new' }" class="text-foreground underline">Sign in</a>
+              instead to edit it later and follow identifications.
+            </p>
+          </div>
+          <div hlmCardContent class="grid gap-4 sm:grid-cols-2">
+            <div class="flex flex-col gap-1.5">
+              <label hlmLabel for="guestName">Your name *</label>
+              <input hlmInput id="guestName" formControlName="guestName" autocomplete="name" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label hlmLabel for="guestEmail">Email (optional, private)</label>
+              <input hlmInput id="guestEmail" type="email" formControlName="guestEmail" autocomplete="email" />
+            </div>
+          </div>
+        </div>
+      }
+
       @if (submitError()) { <p class="text-destructive text-sm" role="alert">{{ submitError() }}</p> }
       <div class="flex justify-end gap-2">
         <a hlmBtn variant="ghost" [routerLink]="id() ? ['/observations', id()] : '/observations'">Cancel</a>
@@ -191,6 +215,7 @@ const txt = (v: string) => v.trim() || null;
   `,
 })
 export class ObservationForm {
+  protected readonly auth = inject(AuthService);
   private readonly api = inject(ObservationsApi);
   private readonly router = inject(Router);
   private readonly map = viewChild(ObservationMap);
@@ -216,6 +241,8 @@ export class ObservationForm {
     individuals: [''],
     captive: [false],
     notes: [''],
+    guestName: [''],
+    guestEmail: [''],
   });
   private readonly values = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
   protected readonly position = computed(() => {
@@ -377,9 +404,26 @@ export class ObservationForm {
       this.api.update(id, body).subscribe({ next: () => this.router.navigate(['/observations', id]), error: fail });
       return;
     }
+    const guest = !this.auth.user();
+    const guestName = this.form.value.guestName?.trim() ?? '';
+    const guestEmail = this.form.value.guestEmail?.trim() ?? '';
+    if (guest && guestName.length < 2) {
+      this.submitError.set('Please give your name (or sign in).');
+      this.submitting.set(false);
+      return;
+    }
+    if (guest && guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+      this.submitError.set('That email address looks incomplete.');
+      this.submitting.set(false);
+      return;
+    }
     const data = new FormData();
     // Fields first, then files: the server reads the multipart stream in order.
     for (const [k, v] of Object.entries(body)) if (v !== null && v !== '') data.append(k, String(v));
+    if (guest) {
+      data.append('guestName', guestName);
+      if (guestEmail) data.append('guestEmail', guestEmail);
+    }
     const t = this.taxon();
     const name = t?.scientificName ?? this.form.value.taxonText?.trim();
     if (name) {

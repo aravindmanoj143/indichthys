@@ -128,7 +128,8 @@ Species tags link to the Taxonomy pages (and each species page can be searched f
 
 ### Module 6: Fieldwork — Observations
 iNaturalist-style sightings with a map (Leaflet; OpenStreetMap and Esri satellite tiles).
-- **Add** (`/observations/new`, signed in): up to 6 photos, species from GBIF (or a genus/family name, or blank),
+- **Add** (`/observations/new`, no account needed): guests give a name (email optional, never shown) and are limited to
+  6 submissions an hour; only signed-in users can edit their observations later. Up to 6 photos, species from GBIF (or a genus/family name, or blank),
   date/time and location. Date and GPS are read from the first photo's EXIF; "Use my location" uses the browser's GPS;
   clicking the map places the point. Optional water body, habitat, count, captive flag and notes. Owners can edit or delete.
 - **Browse** (`/observations`): map + list, filter by name, quality grade, "only in map area" and "my observations".

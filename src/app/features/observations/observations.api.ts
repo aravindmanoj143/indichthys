@@ -40,6 +40,8 @@ export interface Person {
   name: string;
   profileSlug: string | null;
   verified: boolean;
+  /** Added without an account. */
+  guest: boolean;
 }
 
 export interface ObservationSummary {

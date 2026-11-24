@@ -756,10 +756,14 @@ model Certificate {
 
 // ═══════════════ Fieldwork: observations (module 6) ═══════════════
 
-/// A dated, located sighting of a fish, shared by a signed-in user (iNaturalist-style).
+/// A dated, located sighting of a fish (iNaturalist-style), by a signed-in user or a guest.
 model Observation {
   id           Int       @id @default(autoincrement())
-  userId       Int
+  /// Null for guest observations (no account): then guestName is set.
+  userId       Int?
+  guestName    String?
+  /// Private: never returned by the API.
+  guestEmail   String?
   observedAt   DateTime?
   /// Exact position; public responses round it when geoprivacy = obscured.
   latitude     Float?
@@ -787,7 +791,7 @@ model Observation {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  user            User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User?                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   photos          ObservationPhoto[]
   identifications ObservationIdentification[]
 
@@ -813,7 +817,9 @@ model ObservationPhoto {
 model ObservationIdentification {
   id            Int      @id @default(autoincrement())
   observationId Int
-  userId        Int
+  /// Null only for a guest observer's own initial identification.
+  userId        Int?
+  guestName     String?
   taxonName     String
   gbifKey       Int?
   /// species | genus | family | ...
@@ -823,7 +829,7 @@ model ObservationIdentification {
   createdAt     DateTime @default(now())
 
   observation Observation @relation(fields: [observationId], references: [id], onDelete: Cascade)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([observationId, isCurrent])
 }

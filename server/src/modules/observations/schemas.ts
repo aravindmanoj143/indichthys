@@ -45,6 +45,17 @@ export const TaxonFields = z.object({
   taxonRank: z.string().trim().max(30).optional().nullable(),
 });
 
+/** Required when adding an observation without signing in. */
+export const GuestFields = z.object({
+  guestName: z.string({ error: 'Please give your name' }).trim().min(2, 'Please give your name').max(120),
+  guestEmail: z
+    .email('Email looks invalid')
+    .max(200)
+    .optional()
+    .nullable()
+    .transform((v) => v || null),
+});
+
 export const IdentificationBody = TaxonFields.extend({ comment: text(2000) });
 
 export const ListQuery = z.object({
