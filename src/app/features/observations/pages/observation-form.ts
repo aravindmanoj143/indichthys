@@ -30,8 +30,12 @@ function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-const num = (v: string) => (v.trim() === '' ? null : Number(v));
-const txt = (v: string) => v.trim() || null;
+/** Number inputs hand reactive forms a number (or null), other inputs a string: accept both. */
+const num = (v: unknown) => {
+  const t = String(v ?? '').trim();
+  return t === '' || !Number.isFinite(Number(t)) ? null : Number(t);
+};
+const txt = (v: unknown) => String(v ?? '').trim() || null;
 
 /** Add a new observation, or edit one (route param `id`). */
 @Component({
@@ -185,14 +189,14 @@ const txt = (v: string) => v.trim() || null;
           <div hlmCardHeader>
             <h2 hlmCardTitle>Your details</h2>
             <p hlmCardDescription>
-              No account needed. Your name is shown with the observation; your email stays private.
+              Optional. Your name is shown with the observation (otherwise "Guest"); your email stays private.
               <a routerLink="/account/login" [queryParams]="{ next: '/observations/new' }" class="text-foreground underline">Sign in</a>
               instead to edit it later and follow identifications.
             </p>
           </div>
           <div hlmCardContent class="grid gap-4 sm:grid-cols-2">
             <div class="flex flex-col gap-1.5">
-              <label hlmLabel for="guestName">Your name *</label>
+              <label hlmLabel for="guestName">Your name (optional)</label>
               <input hlmInput id="guestName" formControlName="guestName" autocomplete="name" />
             </div>
             <div class="flex flex-col gap-1.5">
@@ -246,10 +250,9 @@ export class ObservationForm {
   });
   private readonly values = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
   protected readonly position = computed(() => {
-    const lat = Number(this.values().latitude);
-    const lng = Number(this.values().longitude);
-    const ok = this.values().latitude !== '' && this.values().longitude !== '' && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
-    return ok ? { lat, lng } : null;
+    const lat = num(this.values().latitude);
+    const lng = num(this.values().longitude);
+    return lat != null && lng != null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
   });
 
   protected readonly taxon = signal<TaxonInput | null>(null);
@@ -407,11 +410,6 @@ export class ObservationForm {
     const guest = !this.auth.user();
     const guestName = this.form.value.guestName?.trim() ?? '';
     const guestEmail = this.form.value.guestEmail?.trim() ?? '';
-    if (guest && guestName.length < 2) {
-      this.submitError.set('Please give your name (or sign in).');
-      this.submitting.set(false);
-      return;
-    }
     if (guest && guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
       this.submitError.set('That email address looks incomplete.');
       this.submitting.set(false);
@@ -421,7 +419,7 @@ export class ObservationForm {
     // Fields first, then files: the server reads the multipart stream in order.
     for (const [k, v] of Object.entries(body)) if (v !== null && v !== '') data.append(k, String(v));
     if (guest) {
-      data.append('guestName', guestName);
+      if (guestName) data.append('guestName', guestName);
       if (guestEmail) data.append('guestEmail', guestEmail);
     }
     const t = this.taxon();

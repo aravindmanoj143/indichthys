@@ -153,7 +153,7 @@ export async function observationRoutes(app: FastifyInstance, { db }: { db: Db }
     };
   });
 
-  /** Signed-in users, or guests who give their name (email optional, kept private). */
+  /** Signed-in users, or guests (name and email optional; email kept private). */
   app.post('/', createLimit, async (request, reply) => {
     const user = request.user;
     const { fields, photos, cleanup } = await readPhotoForm(request);
@@ -162,7 +162,7 @@ export async function observationRoutes(app: FastifyInstance, { db }: { db: Db }
       const guest = user ? null : GuestFields.parse(fields);
       const taxon = fields['taxonName'] ? TaxonFields.parse(fields) : null;
       const pos = publicPosition(data);
-      const by = user ? { userId: user.id } : { guestName: guest!.guestName };
+      const by = user ? { userId: user.id } : { guestName: guest!.guestName ?? 'Guest' };
       const created = await db.observation.create({
         data: {
           ...data,
