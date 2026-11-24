@@ -103,6 +103,19 @@ const OPPORTUNITIES: CuratedOpportunity[] = [
     country: 'US',
   },
   {
+    // Guidelines PDF checked 2026-11-25 (MoEF&CC, 2024).
+    slug: 'npca-aquatic-ecosystems-scheme',
+    section: 'funding',
+    type: 'government-grant',
+    title: 'National Plan for Conservation of Aquatic Ecosystems (NPCA)',
+    organisation: 'Ministry of Environment, Forest and Climate Change',
+    description: `Centrally sponsored scheme of the Government of India for the conservation and management of wetlands and lakes, implemented through state governments. The revised 2024 guidelines explain how projects are proposed, approved and funded.\n\n${CHECK_SITE}`,
+    eligibility: 'Proposals are submitted by state/UT governments and their wetland authorities; researchers and NGOs usually take part through state-led projects.',
+    applyUrl: 'https://moef.gov.in/uploads/2024/04/NPCA-guidelines-2024-Wetlands.pdf',
+    location: 'India',
+    country: 'IN',
+  },
+  {
     slug: 'anrf-research-grants',
     section: 'funding',
     type: 'government-grant',
@@ -174,6 +187,19 @@ const PROJECTS = [
     region: 'Global',
     focusSpecies: 'Threatened freshwater species',
     url: 'https://shoal.org',
+  },
+  {
+    // Workshop page checked 2026-11-25.
+    slug: 'community-fish-conservation-zones',
+    title: 'Community-based fish conservation in free-flowing rivers',
+    kind: 'initiative',
+    summary: 'Research and practice on community-run fish conservation zones and similar local models for protecting river fishes in India.',
+    description: 'A project led by the Indian Institute for Human Settlements (IIHS) with the Foundation for Ecological Research, Advocacy and Learning (FERAL) studies community-based approaches to protecting and managing free-flowing rivers and their fishes.\n\nA national workshop at IIHS, Bengaluru on 1 December 2023 brought together researchers, NGOs and conservation practitioners working on community fish conservation models across India.',
+    institution: null,
+    organisation: 'IIHS and FERAL',
+    region: 'India',
+    focusSpecies: 'River fishes, including mahseers',
+    url: 'https://www.feralindia.org/events/conservation-freshwater-ecosystems-workshop-community-based-approaches-protection-and',
   },
   {
     slug: 'india-biodiversity-portal-citizen-science',
@@ -402,6 +428,26 @@ async function personWorks(m: { family: string; given: string[] }): Promise<Cand
 
 // ═══════════════ Crossref publications ═══════════════
 
+/** Individually chosen papers (verified on Crossref). */
+const FEATURED_DOIS = ['10.1016/j.scitotenv.2025.180695'];
+
+/** News written in our own words about verified items; figures are only included when checked against the source. */
+const CURATED_NEWS = [
+  {
+    slug: 'data-science-assessment-indian-freshwater-fishes-2025',
+    title: 'Data science used to assess native Indian freshwater fishes and their conservation status',
+    summary: 'A 2025 study in Science of the Total Environment by Sahu, Das Sarkar & Naskar applies data-science methods to India’s native freshwater fish taxa.',
+    body: [
+      'Sahu SK, Das Sarkar S, Naskar M (2025). Utilizing data science to assess native Indian freshwater fish taxa and their conservation status. Science of the Total Environment 1003: 180695.',
+      'The authors use data-science and machine-learning methods to compile and analyse records of native Indian freshwater fishes, including trends in species discovery and their threat status.',
+      'Read the paper: https://doi.org/10.1016/j.scitotenv.2025.180695',
+    ].join('\n\n'),
+    category: 'research',
+    sourceUrl: 'https://doi.org/10.1016/j.scitotenv.2025.180695',
+    publishedAt: new Date('2025-11-01T00:00:00Z'),
+  },
+];
+
 const QUERIES = [
   'new species Garra India',
   'new species Schistura India',
@@ -607,6 +653,16 @@ async function main() {
     if (r) imported.push({ id: r.id, candidate: c, type: r.type });
   }
   console.log(`Publications: ${candidates.length} found, ${added} new`);
+  for (const doi of FEATURED_DOIS) {
+    const res = await getJson<{ message: CrossrefWork }>(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
+    if (res) await upsertPublication(db, { work: res.message, title: cleanTitle(res.message.title?.[0] ?? ''), date: issuedDate(res.message) }, areas, DRY_RUN);
+  }
+  for (const n of CURATED_NEWS) {
+    if (DRY_RUN) continue;
+    const { slug, ...data } = n;
+    await db.newsPost.upsert({ where: { slug }, update: { ...data, status: 'published' }, create: { slug, ...data, status: 'published' } });
+  }
+  console.log(`Featured papers: ${FEATURED_DOIS.length}; curated news: ${CURATED_NEWS.length}`);
 
   // Sample ichthyologists (after publications, so shared papers are linked too)
   console.log('Ichthyologists:');
