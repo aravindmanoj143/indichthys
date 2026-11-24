@@ -65,6 +65,7 @@ npm run build      # production build -> dist/
 | 3 | Research & Publications (`/publications`) | done | Indichthys API + Crossref |
 | 4 | Ichthyologist Registry (`/ichthyologists`) | done | Indichthys API (SQLite) |
 | 5 | Courses & Education (`/learning`, `/workshops`) | done | Indichthys API |
+| 6 | Fieldwork: Observations (`/observations`) | observations done; surveys & expeditions not yet | Indichthys API + OpenStreetMap |
 | 7 | Conservation & Organisations (`/conservation`, `/threatened`, `/organisations`) | done, except endemic-species list | API + live GBIF |
 | 8 | Research Grants & Funding (`/grants`, `/fellowships`) | done | Indichthys API |
 | 9 | Jobs & Opportunities (`/jobs`) | done | Indichthys API |
@@ -124,6 +125,19 @@ Progress (lessons completed) and certificates need sign-in; lessons themselves a
 
 Members (signed in) add publications; the person who added one, or an admin, can edit it; admins can delete.
 Species tags link to the Taxonomy pages (and each species page can be searched for "other papers").
+
+### Module 6: Fieldwork — Observations
+iNaturalist-style sightings with a map (Leaflet; OpenStreetMap and Esri satellite tiles).
+- **Add** (`/observations/new`, signed in): up to 6 photos, species from GBIF (or a genus/family name, or blank),
+  date/time and location. Date and GPS are read from the first photo's EXIF; "Use my location" uses the browser's GPS;
+  clicking the map places the point. Optional water body, habitat, count, captive flag and notes. Owners can edit or delete.
+- **Browse** (`/observations`): map + list, filter by name, quality grade, "only in map area" and "my observations".
+- **Identify**: anyone signed in can agree or suggest another name (with a comment); a new ID replaces your earlier one,
+  and IDs can be withdrawn. The community taxon is the most common current ID.
+- **Quality grade**: *casual* (no photo, date or location, or captive) → *needs ID* → *research grade* (≥2 agreeing
+  species-level IDs and more than two thirds agreement). Logic and tests: `server/src/modules/observations/quality.ts`.
+- **Location privacy**: "obscured" stores the exact point but shows everyone else the centre of a 0.2° (~20 km) cell;
+  map and area searches use only the public point, so the true spot can't be narrowed down by searching.
 
 ### Modules 7, 8, 9, 12, 14
 | Module | What's there |

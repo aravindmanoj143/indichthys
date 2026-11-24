@@ -13,6 +13,7 @@ import { authRoutes } from './modules/auth/routes';
 import { contentRoutes } from './modules/content/routes';
 import { identificationRoutes } from './modules/identification/routes';
 import { learningRoutes } from './modules/learning/routes';
+import { observationRoutes } from './modules/observations/routes';
 import { publicationRoutes } from './modules/publications/routes';
 import { registryRoutes } from './modules/registry/routes';
 
@@ -58,6 +59,7 @@ export async function buildApp(db: Db, opts: { logger?: boolean } = {}) {
   await app.register(contentRoutes, { prefix: '/api', db });
   await app.register(publicationRoutes, { prefix: '/api/publications', db });
   await app.register(learningRoutes, { prefix: '/api/learning', db });
+  await app.register(observationRoutes, { prefix: '/api/observations', db });
 
   // Production: serve the Angular build; unknown non-API paths get index.html so client routes work on reload.
   const webRoot = config.webRoot;

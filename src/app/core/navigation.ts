@@ -40,7 +40,11 @@ export const MAIN_NAV: NavItem[] = [
       { label: 'Community' },
     ],
   },
-  { label: 'Fieldwork', modules: [{ label: 'Surveys' }, { label: 'Expeditions' }, { label: 'Observations' }] },
+  {
+    label: 'Fieldwork',
+    route: '/observations',
+    modules: [{ label: 'Observations', route: '/observations' }, { label: 'Surveys' }, { label: 'Expeditions' }],
+  },
   {
     label: 'Conservation',
     route: '/conservation',

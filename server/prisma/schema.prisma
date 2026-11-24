@@ -290,6 +290,8 @@ model User {
   proposals         IdentificationProposal[]
   reviews           ProposalReview[]
   requests          IdentificationRequest[]
+  observations      Observation[]
+  obsIdentifications ObservationIdentification[]
 }
 
 model Session {
@@ -750,4 +752,78 @@ model Certificate {
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
+}
+
+// ═══════════════ Fieldwork: observations (module 6) ═══════════════
+
+/// A dated, located sighting of a fish, shared by a signed-in user (iNaturalist-style).
+model Observation {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  observedAt   DateTime?
+  /// Exact position; public responses round it when geoprivacy = obscured.
+  latitude     Float?
+  longitude    Float?
+  /// What everyone else sees (and what map/area searches use): exact, or the centre of a 0.2° cell when obscured.
+  publicLatitude  Float?
+  publicLongitude Float?
+  /// Positional accuracy in metres.
+  accuracyM    Int?
+  placeName    String?
+  waterBody    String?
+  habitat      String?
+  individuals  Int?
+  /// Captive or cultivated (aquarium, fish farm, market): such records are never research grade.
+  captive      Boolean   @default(false)
+  /// open | obscured
+  geoprivacy   String    @default("open")
+  notes        String?
+  /// Community taxon, recomputed from current identifications.
+  taxonName    String?
+  gbifKey      Int?
+  taxonRank    String?
+  /// casual | needs-id | research
+  qualityGrade String    @default("casual")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user            User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photos          ObservationPhoto[]
+  identifications ObservationIdentification[]
+
+  @@index([qualityGrade])
+  @@index([gbifKey])
+  @@index([publicLatitude, publicLongitude])
+  @@index([userId])
+}
+
+model ObservationPhoto {
+  id            Int      @id @default(autoincrement())
+  observationId Int
+  fileName      String   @unique
+  originalName  String
+  mimeType      String
+  size          Int
+  createdAt     DateTime @default(now())
+
+  observation Observation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+}
+
+/// One person's identification; a new one from the same person replaces (isCurrent = false) their earlier one.
+model ObservationIdentification {
+  id            Int      @id @default(autoincrement())
+  observationId Int
+  userId        Int
+  taxonName     String
+  gbifKey       Int?
+  /// species | genus | family | ...
+  taxonRank     String?
+  comment       String?
+  isCurrent     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  observation Observation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([observationId, isCurrent])
 }

@@ -37,6 +37,7 @@ export const routes: Routes = [
     title: 'Research tools · Indichthys',
     loadComponent: () => import('./features/tools/research-tools').then((m) => m.ResearchTools),
   },
+  { path: 'observations', loadChildren: () => import('./features/observations/observations.routes').then((m) => m.OBSERVATION_ROUTES) },
   { path: 'specimens', loadChildren: () => import('./features/content/content.routes').then((m) => m.SPECIMEN_ROUTES) },
   // Grants, jobs, fellowships, opportunities/*, conservation, threatened, organisations (top-level paths).
   { path: '', loadChildren: () => import('./features/content/content.routes').then((m) => m.OPPORTUNITY_ROUTES) },
