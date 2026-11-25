@@ -1,7 +1,12 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'taxonomy' },
+  {
+    path: '',
+    pathMatch: 'full',
+    title: 'Indichthys · Freshwater fishes of India',
+    loadComponent: () => import('./features/home/home').then((m) => m.Home),
+  },
   {
     path: 'taxonomy',
     loadChildren: () => import('./features/taxonomy/taxonomy.routes').then((m) => m.TAXONOMY_ROUTES),
@@ -37,6 +42,11 @@ export const routes: Routes = [
     title: 'Research tools · Indichthys',
     loadComponent: () => import('./features/tools/research-tools').then((m) => m.ResearchTools),
   },
+  {
+    path: 'endemics',
+    title: 'Endemic fishes of India · Indichthys',
+    loadComponent: () => import('./features/observations/pages/endemics-map').then((m) => m.EndemicsMap),
+  },
   { path: 'observations', loadChildren: () => import('./features/observations/observations.routes').then((m) => m.OBSERVATION_ROUTES) },
   { path: 'specimens', loadChildren: () => import('./features/content/content.routes').then((m) => m.SPECIMEN_ROUTES) },
   // Grants, jobs, fellowships, opportunities/*, conservation, threatened, organisations (top-level paths).
@@ -47,5 +57,5 @@ export const routes: Routes = [
     title: 'Coming soon · Indichthys',
     loadComponent: () => import('./shared/coming-soon').then((m) => m.ComingSoon),
   },
-  { path: '**', redirectTo: 'taxonomy' },
+  { path: '**', redirectTo: '' },
 ];

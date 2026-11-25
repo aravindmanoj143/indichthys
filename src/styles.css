@@ -82,6 +82,21 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* Display serif for headings on editorial pages (loaded in index.html). */
+@theme {
+  --font-display: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
+}
+
+/* Carousel progress bar: also drives autoplay (animationend → next slide). */
+@keyframes progress-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

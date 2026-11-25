@@ -108,6 +108,11 @@ export class GbifTaxonomyService {
     });
   }
 
+  /** IUCN Red List category of a species, or null when GBIF has none. */
+  iucnCategory(key: number): Observable<GbifIucnCategory | null> {
+    return this.get<GbifIucnCategory>(`/species/${key}/iucnRedListCategory`).pipe(catchError(() => of(null)));
+  }
+
   /** Total number of occurrence records for a taxon (optionally within a country). */
   occurrenceCount(filter: OccurrenceFilter): Observable<number> {
     const params: Params = { ...filter.extra, taxonKey: filter.taxonKey, limit: 0 };

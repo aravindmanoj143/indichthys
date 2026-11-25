@@ -43,7 +43,12 @@ export const MAIN_NAV: NavItem[] = [
   {
     label: 'Fieldwork',
     route: '/observations',
-    modules: [{ label: 'Observations', route: '/observations' }, { label: 'Surveys' }, { label: 'Expeditions' }],
+    modules: [
+      { label: 'Observations', route: '/observations' },
+      { label: 'Endemics', route: '/endemics' },
+      { label: 'Surveys' },
+      { label: 'Expeditions' },
+    ],
   },
   {
     label: 'Conservation',
