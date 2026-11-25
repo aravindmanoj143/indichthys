@@ -12,8 +12,8 @@
         <ng-icon [name]="menuOpen() ? 'lucideX' : 'lucideMenu'" size="20" />
       </button>
       <a routerLink="/" class="flex shrink-0 items-center gap-2 font-semibold">
-        <ng-icon name="lucideFish" size="22" class="text-primary" />
-        Indichthys
+        <img src="images/logo-mark.png" alt="" width="44" height="36" class="h-9 w-auto dark:rounded-md dark:bg-white dark:p-0.5" />
+        <span class="text-[1.05rem] tracking-tight text-[#00335a] dark:text-white">Indichthys</span>
       </a>
       <nav aria-label="Main" class="hidden min-w-0 gap-1 overflow-x-auto text-sm lg:flex">
         @for (item of nav; track item.label) {
@@ -133,7 +133,10 @@
     <router-outlet />
   </main>
 
-  <footer class="text-muted-foreground border-t py-6 text-center text-xs">
+  <footer class="text-muted-foreground border-t py-8 text-center text-xs">
+    <a routerLink="/" class="mx-auto mb-3 block w-fit" aria-label="Indichthys home">
+      <img src="images/logo.png" alt="Indichthys" width="96" height="90" class="h-[90px] w-auto dark:rounded-xl dark:bg-white dark:p-2" loading="lazy" />
+    </a>
     © {{ year }} Indichthys · Developed by
     <a href="https://www.instagram.com/aravind_manoj/" target="_blank" rel="noopener noreferrer" class="text-foreground hover:underline">Aravind Manoj</a>
   </footer>
