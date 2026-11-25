@@ -1,1 +1,0 @@
-import"./main-4ALKZPOE.js";var e=[{path:``,title:`Taxonomy · Indichthys`,loadComponent:()=>import(`./chunk-DZ2QTOn7.js`).then(t=>t.TaxonomyOverview)},{path:`species/:key`,title:`Species · Indichthys`,loadComponent:()=>import(`./chunk-BwP3rYMR.js`).then(t=>t.SpeciesDetail)}];export{e as TAXONOMY_ROUTES};
