@@ -56,5 +56,6 @@ export async function readPhotoForm(request: FastifyRequest) {
   return { fields: nonEmpty, photos: saved, cleanup };
 }
 
+/** Deletes local upload files; external photos (http(s) URLs, e.g. iNaturalist imports) are skipped. */
 export const deleteUploads = (fileNames: string[]) =>
-  Promise.all(fileNames.map((f) => unlink(path.join(config.uploadDir, f)).catch(() => {})));
+  Promise.all(fileNames.filter((f) => !/^https?:\/\//.test(f)).map((f) => unlink(path.join(config.uploadDir, f)).catch(() => {})));

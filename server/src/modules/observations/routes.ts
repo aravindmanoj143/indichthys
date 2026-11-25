@@ -77,6 +77,7 @@ export async function observationRoutes(app: FastifyInstance, { db }: { db: Db }
           observedAt: true,
           placeName: true,
           waterBody: true,
+          sourceUrl: true,
           guestName: true,
           publicLatitude: true,
           publicLongitude: true,

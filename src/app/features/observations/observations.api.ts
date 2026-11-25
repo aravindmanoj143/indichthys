@@ -5,6 +5,8 @@ import { Observable } from 'rxjs';
 
 const API = '/api/observations';
 export const UPLOADS = `${API_BASE}/api/uploads`;
+/** Photo URL: uploaded files come from /api/uploads; imported (e.g. iNaturalist) photos are full URLs. */
+export const photoSrc = (fileName: string) => (/^https?:\/\//.test(fileName) ? fileName : `${UPLOADS}/${fileName}`);
 
 export type QualityGrade = 'casual' | 'needs-id' | 'research';
 
@@ -57,6 +59,7 @@ export interface ObservationSummary {
   longitude: number | null;
   observer: Person;
   photo: string | null;
+  sourceUrl: string | null;
   identifications: number;
 }
 
@@ -107,6 +110,8 @@ export interface ObservationDetail {
   gbifKey: number | null;
   taxonRank: string | null;
   qualityGrade: QualityGrade;
+  /** Original record when imported (e.g. iNaturalist). */
+  sourceUrl: string | null;
   createdAt: string;
   observer: Person;
   photos: { id: number; fileName: string }[];

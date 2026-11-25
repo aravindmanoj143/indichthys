@@ -16,7 +16,9 @@
     "db:generate": "prisma generate",
     "user:admin": "tsx scripts/make-admin.ts",
     "data:import": "tsx scripts/import-sample-data.ts",
-    "data:drive": "tsx scripts/import-drive-papers.ts"
+    "data:drive": "tsx scripts/import-drive-papers.ts",
+    "data:inat": "tsx scripts/import-inat.ts",
+    "data:endemics": "tsx scripts/build-endemic-map.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",

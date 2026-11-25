@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSign
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideArrowLeft, lucideBadgeCheck, lucideCheck, lucideLoaderCircle, lucideLock, lucidePencil, lucideTrash2, lucideUndo2 } from '@ng-icons/lucide';
+import { lucideArrowLeft, lucideExternalLink, lucideLoaderCircle, lucideLock, lucidePencil, lucideTrash2 } from '@ng-icons/lucide';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { HlmCardImports } from '@spartan-ng/helm/card';
 import { HlmInputImports } from '@spartan-ng/helm/input';
@@ -13,7 +13,7 @@ import { TaxonPicker } from '../../identification/components/taxon-picker';
 import type { TaxonInput } from '../../identification/identification.api';
 import { ObservationMap } from '../components/observation-map';
 import { QualityBadge } from '../components/quality-badge';
-import { HABITATS, type Identification, type IdentificationInput, ObservationsApi, UPLOADS, apiErrorMessage } from '../observations.api';
+import { HABITATS, type IdentificationInput, ObservationsApi, apiErrorMessage, photoSrc } from '../observations.api';
 
 /** Half the diagonal of a 0.2° cell, roughly: the radius shown around an obscured location. */
 const OBSCURED_RADIUS_M = 15000;
@@ -21,7 +21,7 @@ const OBSCURED_RADIUS_M = 15000;
 @Component({
   selector: 'app-observation-detail',
   imports: [DatePipe, DecimalPipe, RouterLink, NgIcon, HlmButtonImports, HlmCardImports, HlmInputImports, HlmLabelImports, ObservationMap, QualityBadge, TaxonPicker],
-  providers: [provideIcons({ lucideArrowLeft, lucideCheck, lucideUndo2, lucideTrash2, lucidePencil, lucideLock, lucideBadgeCheck, lucideLoaderCircle })],
+  providers: [provideIcons({ lucideArrowLeft, lucideExternalLink, lucideTrash2, lucidePencil, lucideLock, lucideLoaderCircle })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a hlmBtn variant="ghost" size="sm" routerLink="/observations" class="mb-4 -ml-2"><ng-icon name="lucideArrowLeft" /> Observations</a>
@@ -44,8 +44,13 @@ const OBSCURED_RADIUS_M = 15000;
               Observed by
               @if (o.observer.profileSlug) { <a [routerLink]="['/ichthyologists', o.observer.profileSlug]" class="text-foreground hover:underline">{{ o.observer.name }}</a> }
               @else { <span class="text-foreground">{{ o.observer.name }}</span> }
-              @if (o.observer.guest) { <span class="text-xs">(guest)</span> }
+              @if (o.observer.guest && !o.sourceUrl) { <span class="text-xs">(guest)</span> }
             </span>
+            @if (o.sourceUrl) {
+              <a [href]="o.sourceUrl" target="_blank" rel="noopener noreferrer" class="text-foreground inline-flex items-center gap-1 hover:underline">
+                View on iNaturalist <ng-icon name="lucideExternalLink" size="13" />
+              </a>
+            }
             <span>{{ o.observedAt ? (o.observedAt | date: 'd MMM y, HH:mm') : 'Date not recorded' }}</span>
           </div>
         </div>
@@ -61,14 +66,14 @@ const OBSCURED_RADIUS_M = 15000;
         <div class="space-y-6">
           @if (o.photos.length) {
             <figure class="space-y-2">
-              <img [src]="uploads + '/' + (activePhoto() ?? o.photos[0]!.fileName)" alt="Observation photo"
+              <img [src]="photoSrc(activePhoto() ?? o.photos[0]!.fileName)" alt="Observation photo"
                 class="bg-muted max-h-[520px] w-full rounded-lg object-contain" />
               @if (o.photos.length > 1) {
                 <div class="flex gap-2 overflow-x-auto">
                   @for (p of o.photos; track p.id) {
                     <button type="button" class="shrink-0 rounded-md ring-offset-2 focus-visible:ring-2" [class.ring-2]="(activePhoto() ?? o.photos[0]!.fileName) === p.fileName"
                       (click)="activePhoto.set(p.fileName)" [attr.aria-label]="'Show photo ' + ($index + 1)">
-                      <img [src]="uploads + '/' + p.fileName" alt="" class="size-16 rounded-md object-cover" />
+                      <img [src]="photoSrc(p.fileName)" alt="" class="size-16 rounded-md object-cover" />
                     </button>
                   }
                 </div>
@@ -89,30 +94,6 @@ const OBSCURED_RADIUS_M = 15000;
               </p>
             </div>
             <div hlmCardContent>
-              <ol class="space-y-3">
-                @for (i of o.identifications; track i.id) {
-                  <li class="rounded-md border p-3 text-sm" [class.opacity-60]="!i.isCurrent">
-                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <em class="font-medium" [class.line-through]="!i.isCurrent">{{ i.taxonName }}</em>
-                      @if (i.taxonRank && i.taxonRank !== 'species') { <span class="text-muted-foreground text-xs">({{ i.taxonRank }})</span> }
-                      <span class="text-muted-foreground">by</span>
-                      @if (i.by.profileSlug) { <a [routerLink]="['/ichthyologists', i.by.profileSlug]" class="hover:underline">{{ i.by.name }}</a> } @else { <span>{{ i.by.name }}</span> }
-                      @if (i.by.verified) { <ng-icon name="lucideBadgeCheck" class="text-primary" title="Verified ichthyologist" /> }
-                      <span class="text-muted-foreground ml-auto text-xs">{{ i.createdAt | date: 'd MMM y' }}{{ i.isCurrent ? '' : ' · withdrawn' }}</span>
-                    </div>
-                    @if (i.comment) { <p class="text-muted-foreground mt-1 whitespace-pre-line">{{ i.comment }}</p> }
-                    @if (auth.user() && i.isCurrent) {
-                      <div class="mt-2 flex gap-2">
-                        @if (i.isMine) {
-                          <button hlmBtn variant="ghost" size="sm" (click)="withdraw(o.id, i.id)" [disabled]="busy()"><ng-icon name="lucideUndo2" /> Withdraw</button>
-                        } @else if (!agreesWith(i)) {
-                          <button hlmBtn variant="outline" size="sm" (click)="agree(o.id, i)" [disabled]="busy()"><ng-icon name="lucideCheck" /> Agree</button>
-                        }
-                      </div>
-                    }
-                  </li>
-                }
-              </ol>
 
               @if (auth.user()) {
                 <div class="mt-5 space-y-3 border-t pt-4">
@@ -185,7 +166,7 @@ export class ObservationDetail {
 
   readonly id = input.required<string>();
 
-  protected readonly uploads = UPLOADS;
+  protected readonly photoSrc = photoSrc;
   protected readonly obscuredRadius = OBSCURED_RADIUS_M;
   protected readonly obs = rxResource({ params: () => Number(this.id()), stream: ({ params: id }) => this.api.get(id) });
   protected readonly activePhoto = linkedSignal<number, string | null>({ source: () => Number(this.id()), computation: () => null });
@@ -204,17 +185,6 @@ export class ObservationDetail {
     return HABITATS.find(([v]) => v === h)?.[1] ?? h;
   }
 
-  /** My current identification already names this taxon. */
-  protected agreesWith(i: Identification): boolean {
-    const mine = this.obs.value()?.identifications.find((x) => x.isMine && x.isCurrent);
-    if (!mine) return false;
-    return mine.gbifKey != null && i.gbifKey != null ? mine.gbifKey === i.gbifKey : mine.taxonName.toLowerCase() === i.taxonName.toLowerCase();
-  }
-
-  protected agree(id: number, i: Identification): void {
-    this.run(this.api.identify(id, { taxonName: i.taxonName, gbifKey: i.gbifKey, taxonRank: i.taxonRank }));
-  }
-
   protected suggest(id: number): void {
     const t = this.suggestion();
     const body: IdentificationInput = t
@@ -228,16 +198,12 @@ export class ObservationDetail {
     });
   }
 
-  protected withdraw(id: number, identId: number): void {
-    this.run(this.api.withdraw(id, identId));
-  }
-
   protected remove(id: number): void {
     if (!confirm('Delete this observation and its photos? This cannot be undone.')) return;
     this.api.remove(id).subscribe({ next: () => this.router.navigate(['/observations']), error: (e) => this.actionError.set(apiErrorMessage(e)) });
   }
 
-  private run(req: ReturnType<ObservationsApi['withdraw']>, done?: () => void): void {
+  private run(req: ReturnType<ObservationsApi['identify']>, done?: () => void): void {
     this.busy.set(true);
     this.actionError.set(null);
     req.subscribe({

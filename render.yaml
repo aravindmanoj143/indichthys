@@ -15,7 +15,8 @@ services:
       npx prisma migrate deploy &&
       npm run db:seed &&
       (npm run data:import || echo "sample data import failed; continuing") &&
-      (npm run data:drive || echo "drive paper import failed; continuing")
+      (npm run data:drive || echo "drive paper import failed; continuing") &&
+      (npm run data:inat || echo "iNaturalist observation import failed; continuing")
     startCommand: cd server && npm start
     healthCheckPath: /api/health
     envVars:

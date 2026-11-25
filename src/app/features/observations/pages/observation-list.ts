@@ -12,7 +12,7 @@ import { AuthService } from '../../../core/auth.service';
 import { SELECT_CLASS } from '../../content/components/shared';
 import { ObservationMap } from '../components/observation-map';
 import { QualityBadge } from '../components/quality-badge';
-import { type QualityGrade, ObservationsApi, QUALITY_COLOURS, QUALITY_LABELS, UPLOADS, apiErrorMessage } from '../observations.api';
+import { type QualityGrade, ObservationsApi, QUALITY_COLOURS, QUALITY_LABELS, apiErrorMessage, photoSrc } from '../observations.api';
 
 @Component({
   selector: 'app-observation-list',
@@ -88,7 +88,7 @@ import { type QualityGrade, ObservationsApi, QUALITY_COLOURS, QUALITY_LABELS, UP
               <li>
                 <a [routerLink]="['/observations', o.id]" class="hover:bg-muted/50 flex h-full gap-3 rounded-lg border p-2 transition-colors">
                   @if (o.photo) {
-                    <img [src]="uploads + '/' + o.photo" alt="" loading="lazy" class="size-24 shrink-0 rounded-md object-cover" />
+                    <img [src]="photoSrc(o.photo)" alt="" loading="lazy" class="size-24 shrink-0 rounded-md object-cover" />
                   } @else {
                     <div class="bg-muted text-muted-foreground flex size-24 shrink-0 items-center justify-center rounded-md"><ng-icon name="lucideCamera" size="22" /></div>
                   }
@@ -102,6 +102,7 @@ import { type QualityGrade, ObservationsApi, QUALITY_COLOURS, QUALITY_LABELS, UP
                     </p>
                     <p class="text-muted-foreground text-xs">
                       {{ o.observedAt ? (o.observedAt | date: 'd MMM y') : 'No date' }} · {{ o.observer.name }}
+                      @if (o.sourceUrl) { <span class="bg-muted ml-1 rounded px-1 py-px text-[10px]">iNaturalist</span> }
                     </p>
                   </div>
                 </a>
@@ -126,7 +127,7 @@ export class ObservationList {
   private readonly router = inject(Router);
 
   protected readonly selectClass = SELECT_CLASS;
-  protected readonly uploads = UPLOADS;
+  protected readonly photoSrc = photoSrc;
   protected readonly grades: QualityGrade[] = ['research', 'needs-id', 'casual'];
   protected readonly labels = QUALITY_LABELS;
   protected readonly colours = QUALITY_COLOURS;
