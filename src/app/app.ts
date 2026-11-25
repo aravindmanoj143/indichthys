@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideClipboardCheck, lucideFish, lucideInbox, lucideLogOut, lucideShieldCheck, lucideUser } from '@ng-icons/lucide';
+import { lucideClipboardCheck, lucideFish, lucideInbox, lucideLogOut, lucideMenu, lucideShieldCheck, lucideUser, lucideX } from '@ng-icons/lucide';
 import { catchError, filter, map, of } from 'rxjs';
 import { AuthService } from './core/auth.service';
 import { MAIN_NAV, NavItem, sectionForUrl } from './core/navigation';
@@ -11,7 +11,7 @@ import { MAIN_NAV, NavItem, sectionForUrl } from './core/navigation';
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon],
-  providers: [provideIcons({ lucideFish, lucideUser, lucideInbox, lucideLogOut, lucideShieldCheck, lucideClipboardCheck })],
+  providers: [provideIcons({ lucideFish, lucideUser, lucideInbox, lucideLogOut, lucideShieldCheck, lucideClipboardCheck, lucideMenu, lucideX })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
 })
@@ -30,6 +30,13 @@ export class App {
   );
 
   protected readonly activeSection = computed(() => sectionForUrl(this.url()));
+
+  /** Mobile navigation drawer; closes on every navigation. */
+  protected readonly menuOpen = signal(false);
+  private readonly closeMenuOnNavigate = effect(() => {
+    this.url();
+    this.menuOpen.set(false);
+  });
 
   /** Pending moderation items (admins), refreshed on navigation. */
   private readonly http = inject(HttpClient);
