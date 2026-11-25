@@ -1,9 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { API_BASE } from '../../core/api-base';
 import { Observable } from 'rxjs';
 
 const API = '/api/identification';
-export const UPLOADS = '/api/uploads';
+export const UPLOADS = `${API_BASE}/api/uploads`;
 
 // ───── Shared ─────
 

@@ -29,8 +29,9 @@ services:
         value: file:./data/indichthys.db
       - key: WEB_ROOT
         value: ../dist/indichthys/browser
+      # The site itself plus the GitHub Pages frontend (aravindmanoj143.github.io/indichthys).
       - key: CORS_ORIGINS
-        value: https://indichthys.onrender.com
+        value: https://indichthys.onrender.com,https://aravindmanoj143.github.io
       # Comma-separated emails that become admins when they register.
       - key: ADMIN_EMAILS
         sync: false

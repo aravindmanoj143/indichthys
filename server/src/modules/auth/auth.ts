@@ -22,25 +22,26 @@ declare module 'fastify' {
   }
 }
 
+/**
+ * In production the frontend may be on another site (GitHub Pages) calling this API, so the session
+ * cookie must be SameSite=None (which requires Secure). CSRF is still blocked by CSRF_HEADER + CORS.
+ */
+const cookieOptions = () =>
+  config.isProduction ? ({ path: '/', sameSite: 'none', secure: true } as const) : ({ path: '/', sameSite: 'lax', secure: false } as const);
+
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 export async function createSession(db: Db, reply: FastifyReply, userId: number) {
   const token = randomBytes(32).toString('base64url');
   const expiresAt = new Date(Date.now() + config.sessionDays * 86_400_000);
   await db.session.create({ data: { id: hashToken(token), userId, expiresAt } });
-  reply.setCookie(SESSION_COOKIE, token, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: config.isProduction,
-    expires: expiresAt,
-  });
+  reply.setCookie(SESSION_COOKIE, token, { ...cookieOptions(), httpOnly: true, expires: expiresAt });
 }
 
 export async function destroySession(db: Db, request: FastifyRequest, reply: FastifyReply) {
   const token = request.cookies[SESSION_COOKIE];
   if (token) await db.session.deleteMany({ where: { id: hashToken(token) } });
-  reply.clearCookie(SESSION_COOKIE, { path: '/' });
+  reply.clearCookie(SESSION_COOKIE, cookieOptions());
 }
 
 /** Loads request.user from the session cookie and enforces the CSRF header on writes. */
@@ -72,7 +73,7 @@ export function registerAuth(app: FastifyInstance, db: Db) {
     });
     if (!session || session.expiresAt < new Date()) {
       if (session) await db.session.delete({ where: { id: session.id } }).catch(() => {});
-      reply.clearCookie(SESSION_COOKIE, { path: '/' });
+      reply.clearCookie(SESSION_COOKIE, cookieOptions());
       return;
     }
     request.user = { ...session.user, role: session.user.role === 'admin' ? 'admin' : 'user' };

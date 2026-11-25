@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "deploy:pages": "bash scripts/deploy-pages.sh",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "api": "npm --prefix server run dev",

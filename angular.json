@@ -50,6 +50,15 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "pages": {
+              "baseHref": "/indichthys/",
+              "fileReplacements": [
+                {
+                  "replace": "src/app/core/api-base.ts",
+                  "with": "src/app/core/api-base.pages.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
