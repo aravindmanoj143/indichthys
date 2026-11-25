@@ -3,6 +3,7 @@
  *
  *   npm --prefix server run data:import            # import
  *   npm --prefix server run data:import -- --dry-run
+ *   npm --prefix server run data:import -- --people-only   # refresh ichthyologist profiles only
  *
  * Sources (no web scraping):
  *  - Crossref REST API: publication metadata (CC0) for recent papers on South Asian freshwater fishes.
@@ -20,6 +21,7 @@ import { TAXONOMIC, cleanTitle } from './sample-data.helpers';
 import { type Candidate, type CrossrefWork, USER_AGENT, authorList, getJson, issuedDate, sleep, upsertPublication } from './publication-import';
 
 const DRY_RUN = process.argv.includes('--dry-run');
+const PEOPLE_ONLY = process.argv.includes('--people-only');
 const db = createPrisma();
 
 
@@ -381,7 +383,25 @@ const SAMPLE_PEOPLE: SamplePerson[] = [
     affiliations: [{ institution: 'Museum and Art Gallery of the Northern Territory', current: false }],
     crossref: { family: 'Larson', given: ['helen'] },
   },
-  { slug: 'balaji-vijayakumar', fullName: 'Balaji Vijayakumar', country: 'IN', expertise: [], affiliations: [] },
+  {
+    // Catfish taxonomist: new species of Pseudolaguvia, Amblyceps and Mystus from the Western Ghats,
+    // Eastern Ghats (Odisha) and Northeast India (Nagaland), per his Crossref-listed papers.
+    slug: 'balaji-vijayakrishnan',
+    fullName: 'Balaji Vijayakrishnan',
+    country: 'IN',
+    expertise: ['taxonomy', 'siluriformes', 'western-ghats', 'eastern-ghats', 'northeast-india'],
+    interests: ['Catfish taxonomy', 'Sisoridae (Pseudolaguvia)', 'Amblycipitidae (Amblyceps)', 'Bagridae (Mystus)'],
+    affiliations: [],
+    crossref: { family: 'Vijayakrishnan', given: ['balaji'] },
+    dois: [
+      '10.11646/zootaxa.5082.1.7',
+      '10.11646/zootaxa.5120.3.10',
+      '10.11646/zootaxa.5297.2.6',
+      '10.1111/jfb.15599',
+      '10.11646/zootaxa.5768.3.6',
+      '10.11646/zootaxa.5853.4.8',
+    ],
+  },
   {
     // From his research portfolio (Aravind G, publishes as Aravind Manoj), supplied by the platform owner.
     slug: 'aravind-manoj',
@@ -572,6 +592,12 @@ async function importPeople(areas: Map<string, number>) {
 
 async function main() {
   console.log(DRY_RUN ? 'DRY RUN: nothing will be written.' : 'Importing sample data…');
+  if (PEOPLE_ONLY) {
+    const areas = new Map((await db.expertiseArea.findMany({ select: { id: true, slug: true } })).map((a) => [a.slug, a.id]));
+    console.log('Ichthyologists:');
+    await importPeople(areas);
+    return;
+  }
 
   // Institutions
   const institutionId = new Map<string, number>();
