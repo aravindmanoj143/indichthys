@@ -1,0 +1,1 @@
+function n(r){let e=r.honorific?.trim().replace(/\.$/,``);return e?new RegExp(`^${e.replace(/[.*+?^${}()|[\]\\]/g,`\\$&`)}\\.?\\s`,`i`).test(r.fullName)?r.fullName:`${e} ${r.fullName}`:r.fullName}function l(r){let e=r.replace(/^(dr|prof|mr|ms|mrs)\.?\s+/i,``).split(/\s+/).filter(i=>i);return(e.length>1?[e[0],e.at(-1)]:e).map(i=>i[0]?.toUpperCase()??``).join(``)}export{n,l as t};
