@@ -42,7 +42,7 @@ import { LearningApi, lessonBlocks } from '../learning.api';
             @else { Mark complete &amp; take the assessment <ng-icon name="lucideClipboardCheck" /> }
           </button>
         </footer>
-        @if (!auth.signedIn()) { <p class="text-muted-foreground text-xs">Sign in to save your progress.</p> }
+        @if (!auth.signedIn() && auth.signInEnabled) { <p class="text-muted-foreground text-xs">Sign in to save your progress.</p> }
       </article>
     } @else {
       <p class="text-muted-foreground">Loading…</p>

@@ -190,8 +190,10 @@ const txt = (v: unknown) => String(v ?? '').trim() || null;
             <h2 hlmCardTitle>Your details</h2>
             <p hlmCardDescription>
               Optional. Your name is shown with the observation (otherwise "Guest"); your email stays private.
-              <a routerLink="/account/login" [queryParams]="{ next: '/observations/new' }" class="text-foreground underline">Sign in</a>
-              instead to edit it later and follow identifications.
+              @if (auth.signInEnabled) {
+                <a routerLink="/account/login" [queryParams]="{ next: '/observations/new' }" class="text-foreground underline">Sign in</a>
+                instead to edit it later and follow identifications.
+              }
             </p>
           </div>
           <div hlmCardContent class="grid gap-4 sm:grid-cols-2">

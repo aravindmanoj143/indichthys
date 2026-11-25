@@ -71,7 +71,7 @@ export class ModerationNotice {
   template: `
     @if (auth.signedIn()) {
       <a hlmBtn [routerLink]="link()" [queryParams]="params()"><ng-icon name="lucidePlus" /> {{ label() }}</a>
-    } @else {
+    } @else if (auth.signInEnabled) {
       <a hlmBtn variant="outline" routerLink="/account/login" [queryParams]="{ next: link() }"><ng-icon name="lucidePlus" /> {{ label() }}</a>
     }
   `,

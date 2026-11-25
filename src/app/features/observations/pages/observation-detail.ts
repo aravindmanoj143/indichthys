@@ -131,7 +131,7 @@ const OBSCURED_RADIUS_M = 15000;
                     @if (actionError()) { <span class="text-destructive text-sm" role="alert">{{ actionError() }}</span> }
                   </div>
                 </div>
-              } @else {
+              } @else if (auth.signInEnabled) {
                 <p class="text-muted-foreground mt-4 text-sm">
                   <a routerLink="/account/login" [queryParams]="{ next: '/observations/' + o.id }" class="text-foreground underline">Sign in</a> to help identify this fish.
                 </p>

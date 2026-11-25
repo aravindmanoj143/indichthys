@@ -19,9 +19,11 @@ import { AuthService } from '../../../core/auth.service';
         <h1 class="text-3xl font-semibold tracking-tight">Publications</h1>
         <p class="text-muted-foreground max-w-3xl">Papers, species descriptions, taxonomic revisions, reports, books and field guides on fishes.</p>
       </div>
-      <a hlmBtn [routerLink]="auth.signedIn() ? '/publications/add' : '/account/login'" [queryParams]="auth.signedIn() ? {} : { next: '/publications/add' }">
-        <ng-icon name="lucidePlus" /> Add a publication
-      </a>
+      @if (auth.signedIn() || auth.signInEnabled) {
+        <a hlmBtn [routerLink]="auth.signedIn() ? '/publications/add' : '/account/login'" [queryParams]="auth.signedIn() ? {} : { next: '/publications/add' }">
+          <ng-icon name="lucidePlus" /> Add a publication
+        </a>
+      }
     </header>
     <nav class="bg-muted inline-flex flex-wrap gap-1 rounded-lg p-1 text-sm" aria-label="Publications">
       @for (l of links; track l.path) {

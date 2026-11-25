@@ -103,7 +103,7 @@ import { Confidence, IdentificationApi, Proposal, TaxonInput, apiErrorMessage, p
               Signed in as {{ u.profile?.fullName ?? u.displayName }}
               @if (auth.isVerifiedExpert()) { <app-verified-badge status="verified" /> }
             </p>
-          } @else {
+          } @else if (auth.signInEnabled) {
             <div hlmCard size="sm">
               <div hlmCardHeader>
                 <h2 hlmCardTitle>Help identify this fish</h2>

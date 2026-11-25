@@ -19,9 +19,9 @@ describe('App', () => {
     expect(links.length).toBe(8);
   });
 
-  it('offers sign-in when signed out', async () => {
+  it('hides sign-in while sign-in features are disabled', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Sign in');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Sign in');
   });
 });

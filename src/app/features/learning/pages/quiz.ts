@@ -78,7 +78,7 @@ import { LearningApi, QuizResult } from '../learning.api';
                 @if (busy()) { <ng-icon name="lucideLoaderCircle" class="animate-spin" /> } Submit answers
               </button>
             </div>
-          } @else {
+          } @else if (auth.signInEnabled) {
             <p class="text-right text-sm"><a hlmBtn routerLink="/account/login" [queryParams]="{ next: '/learning/' + slug() + '/quiz' }">Sign in to submit and get a certificate</a></p>
           }
         }

@@ -16,6 +16,12 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly state = signal<CurrentUser | null | undefined>(undefined);
 
+  /**
+   * Public sign-in features (Sign in links, "sign in to…" prompts, account sign-up).
+   * While false they are hidden; /account/login still works by URL so admins can sign in.
+   */
+  readonly signInEnabled = false;
+
   readonly user = this.state.asReadonly();
   readonly loaded = computed(() => this.state() !== undefined);
   readonly signedIn = computed(() => !!this.state());

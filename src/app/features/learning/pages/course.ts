@@ -87,7 +87,7 @@ import { FORMATS, LEVELS, LearningApi, SUBJECTS } from '../learning.api';
                 <p hlmCardDescription>Best score {{ pct(c.certificate.score) }} · {{ c.certificate.code }}</p>
               </div>
             </a>
-          } @else if (c.kind === 'indichthys' && !auth.signedIn()) {
+          } @else if (c.kind === 'indichthys' && !auth.signedIn() && auth.signInEnabled) {
             <p class="text-muted-foreground text-sm"><a routerLink="/account/login" [queryParams]="{ next: '/learning/' + c.slug }" class="text-primary hover:underline">Sign in</a> to track progress and earn a certificate. Lessons are open to everyone.</p>
           }
         </aside>

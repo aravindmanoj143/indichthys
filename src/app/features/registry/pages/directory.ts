@@ -33,7 +33,7 @@ const SELECT_CLASS = 'border-input dark:bg-input/30 h-9 rounded-md border bg-tra
         </div>
         @if (auth.user()?.profile) {
           <a hlmBtn variant="outline" routerLink="/account/profile">Edit my profile</a>
-        } @else {
+        } @else if (auth.signedIn() || auth.signInEnabled) {
           <a hlmBtn [routerLink]="auth.signedIn() ? '/account/profile' : '/account/register'"><ng-icon name="lucideUserPlus" /> Add your profile</a>
         }
       </header>
